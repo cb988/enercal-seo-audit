@@ -1,0 +1,47 @@
+name: Audit SEO Enercal
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 20 * * 0"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install
+
+      - name: Run robot
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node robot.js
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-enercal
+          path: audit-enercal.md
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          secure: true
+          subject: Audit SEO Enercal
+          to: com@enercal.nc
+          from: ${{ secrets.EMAIL_FROM }}
+          body: Rapport SEO en pièce jointe.
+          attachments: audit-enercal.md
