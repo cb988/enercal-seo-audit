@@ -1,0 +1,13 @@
+{
+  "name": "enercal-seo-audit",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "robot.js",
+  "scripts": {
+    "start": "node robot.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "openai": "^4.0.0"
+  }
+}
