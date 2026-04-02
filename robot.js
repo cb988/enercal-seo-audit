@@ -7,8 +7,9 @@ const client = new OpenAI({
 });
 
 const sitemap = "https://www.enercal.nc/sitemap_index.xml";
-const BATCH_SIZE = 5;
+const MAX_PAGES = 15;
 
+// --------- RÉCUP URLS ---------
 async function getUrls() {
   const res = await fetch(sitemap);
   const xml = await res.text();
@@ -25,9 +26,10 @@ async function getUrls() {
     urls = urls.concat(subUrls);
   }
 
-  return urls.slice(0, 20); // limite pour éviter surcharge
+  return urls.slice(0, MAX_PAGES);
 }
 
+// --------- CRAWL ---------
 async function crawlPages(urls) {
   const pages = [];
 
@@ -44,32 +46,67 @@ async function crawlPages(urls) {
         url,
         title: $("title").text(),
         h1: $("h1").map((i, el) => $(el).text()).get(),
-        text: $("body").text().slice(0, 2000)
+        text: $("body").text().replace(/\s+/g, " ").slice(0, 3000)
       });
 
     } catch (e) {
-      pages.push({
-        url,
-        error: e.message
-      });
+      pages.push({ url, error: e.message });
     }
   }
 
   return pages;
 }
 
-async function analyzeBatch(batch) {
-  const prompt = `
-Tu es un expert SEO.
+// --------- IA ANALYSE V2 ---------
+async function analyze(pages) {
 
-Analyse ces pages et détecte :
-- incohérences de contenu
-- doublons
+  const prompt = `
+Tu es un expert SEO senior + consultant en communication corporate.
+
+Analyse ces pages web.
+
+Tu dois produire un rapport structuré type présentation PowerPoint.
+
+OBJECTIFS :
+
+1. Détecter :
+- incohérences éditoriales (contradictions, messages flous)
+- incohérences de ton vs image Enercal (institutionnel, énergie, crédibilité)
+- pages faibles (contenu pauvre ou inutile)
 - problèmes SEO
 
-Réponds en français de façon claire.
+2. Donner un SCORE SEO par page (sur 100)
 
-${JSON.stringify(batch, null, 2)}
+3. Prioriser les actions
+
+FORMAT OBLIGATOIRE :
+
+# 🔵 SYNTHÈSE (5 lignes max)
+
+# 🔴 TOP PROBLÈMES
+- court, clair
+
+# 🟠 INCOHÉRENCES ÉDITORIALES
+(ex: contradictions, incohérences discours)
+
+# 🎯 TON DE MARQUE (Enercal)
+- est-ce cohérent ?
+- trop marketing ? pas assez institutionnel ?
+
+# 📉 PAGES FAIBLES
+- URL + pourquoi
+
+# 📊 SCORING PAR PAGE
+tableau :
+URL | Score | Problème principal
+
+# 🚀 PLAN D’ACTION PRIORISÉ
+- Niveau 1 (urgent)
+- Niveau 2
+- Niveau 3
+
+CONTENU À ANALYSER :
+${JSON.stringify(pages, null, 2)}
 `;
 
   const response = await client.responses.create({
@@ -80,50 +117,31 @@ ${JSON.stringify(batch, null, 2)}
   return response.output_text;
 }
 
-function chunkArray(arr, size) {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}
-
+// --------- MAIN ---------
 async function main() {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY manquante");
-    }
-
-    console.log("Récupération sitemap...");
+    console.log("Sitemap...");
     const urls = await getUrls();
 
     console.log("Crawl...");
     const pages = await crawlPages(urls);
 
-    const batches = chunkArray(pages, BATCH_SIZE);
-    const results = [];
-
-    for (let i = 0; i < batches.length; i++) {
-      console.log(`Analyse batch ${i + 1}/${batches.length}`);
-      const res = await analyzeBatch(batches[i]);
-      results.push(res);
-    }
-
-    const final = results.join("\n\n");
+    console.log("Analyse IA...");
+    const result = await analyze(pages);
 
     const report = `
-# Audit SEO Enercal
+# 📊 AUDIT SEO ENERCAL — VERSION EXEC
 
 Date : ${new Date().toLocaleString()}
 
 ---
 
-${final}
+${result}
 `;
 
     fs.writeFileSync("audit-enercal.md", report);
 
-    console.log("Audit terminé !");
+    console.log("✅ Audit terminé !");
   } catch (err) {
     console.error("Erreur :", err.message);
     process.exit(1);
