@@ -30,7 +30,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audit-enercal
-          path: audit-enercal.md
+          path: audit-enercal.pptx
 
       - name: Send email
         uses: dawidd6/action-send-mail@v3
@@ -40,8 +40,14 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           secure: true
-          subject: Audit SEO Enercal
+          subject: Audit de cohérence Enercal - PowerPoint hebdomadaire
           to: com@enercal.nc
           from: ${{ secrets.EMAIL_FROM }}
-          body: Rapport SEO en pièce jointe.
-          attachments: audit-enercal.md
+          body: |
+            Bonjour,
+
+            Veuillez trouver ci-joint le rapport hebdomadaire de cohérence éditoriale du site Enercal au format PowerPoint.
+
+            Cordialement,
+            Robot Enercal
+          attachments: audit-enercal.pptx
